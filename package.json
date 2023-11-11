@@ -1,0 +1,14 @@
+{
+	"name": "obsidian-notion-sync",
+	"version": "1.0.0",
+	"description": "Notion Sync",
+	"main": "main.js",
+	"keywords": [],
+	"author": "Joshua Reinier",
+	"license": "MIT",
+	"scripts": {
+		"dev": "cd ../../ && npm run dev:ns",
+		"build": "cd ../../ && DIR=notion-sync npm run build",
+		"check": "tsc -noEmit -skipLibCheck"
+	}
+}
