@@ -1,7 +1,7 @@
 {
   "id": "notion-sync",
   "name": "Notion Sync",
-  "version": "1.4.0",
+  "version": "1.0.0",
   "minAppVersion": "0.15.0",
   "description": "Two-way sync your Notion Databases to Obsidian, made by the creator of the Notion Importer.",
   "author": "Joshua Tazman Reinier",
