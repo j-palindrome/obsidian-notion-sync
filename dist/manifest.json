@@ -1,0 +1,11 @@
+{
+  "id": "notion-sync",
+  "name": "Notion Sync",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Two-way sync file properties between Notion databases and Obsidian folders.",
+  "author": "Joshua Tazman Reinier",
+  "authorUrl": "https://joshuareinier.com",
+  "fundingUrl": "https://bmc.link/joshuatreinier",
+  "isDesktopOnly": false
+}

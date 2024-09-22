@@ -8,7 +8,7 @@ const DEFAULT_SETTINGS: NotionSyncSettings = {
   files: {},
   apiKey: '',
   lastSync: 0,
-  lastConflicts: [],
+  lastConflicts: []
 }
 
 export default class NotionSync extends Plugin {
@@ -20,13 +20,13 @@ export default class NotionSync extends Plugin {
     // called from obsidianApi etc.
     this.setSetting = this.setSetting.bind(this)
 
-    this.addSettingTab(new NotionSyncSettingsTab(this))
+    this.addSettingTab(new NotionSyncSettingsTab(this.app, this))
     this.api = new Api(this.app, this.settings, this.setSetting)
 
     this.addCommand({
       name: 'Sync',
       callback: () => this.api.sync(),
-      id: 'sync',
+      id: 'sync'
     })
 
     this.addCommand({
@@ -35,7 +35,7 @@ export default class NotionSync extends Plugin {
       callback: async () => {
         this.setSetting({ lastSync: 0 })
         await this.api.sync('download')
-      },
+      }
     })
 
     this.addCommand({
@@ -45,7 +45,7 @@ export default class NotionSync extends Plugin {
         if (!ctx.file) return
         await this.app.fileManager.processFrontMatter(
           ctx.file,
-          async (frontmatter) => {
+          async frontmatter => {
             invariant(ctx.file)
             const id = frontmatter['Notion ID']
             if (!id) {
@@ -57,7 +57,7 @@ export default class NotionSync extends Plugin {
             new Notice('Notion sync: downloaded.')
           }
         )
-      },
+      }
     })
 
     this.addCommand({
@@ -67,7 +67,7 @@ export default class NotionSync extends Plugin {
         if (!ctx.file) return
         await this.app.fileManager.processFrontMatter(
           ctx.file,
-          async (frontmatter) => {
+          async frontmatter => {
             invariant(ctx.file)
             const id = frontmatter['Notion ID']
             if (!id) {
@@ -78,7 +78,7 @@ export default class NotionSync extends Plugin {
             new Notice('Notion sync: uploaded.')
           }
         )
-      },
+      }
     })
 
     this.addCommand({
@@ -87,7 +87,7 @@ export default class NotionSync extends Plugin {
       callback: async () => {
         this.setSetting({ lastSync: 0 })
         await this.api.sync('upload')
-      },
+      }
     })
   }
 
