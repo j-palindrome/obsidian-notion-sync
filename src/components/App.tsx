@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Api from '../api'
 import { parseTitle } from '../functions/parser'
 import { Setting, ToggleComponent } from 'obsidian'
@@ -6,7 +6,15 @@ import _ from 'lodash'
 
 export default function App({ obsidianApi }: { obsidianApi: Api }) {
   const apiKey = obsidianApi.settings.apiKey
-  useEffect(() => {}, [apiKey])
+  const [databases, setDatabases] = useState<Api['databases']>(
+    obsidianApi.databases
+  )
+
+  useEffect(() => {
+    obsidianApi.load().then(() => {
+      setDatabases(obsidianApi.databases)
+    })
+  }, [])
 
   if (!apiKey)
     return (
@@ -32,28 +40,30 @@ export default function App({ obsidianApi }: { obsidianApi: Api }) {
 
   return (
     <div className='font-regular'>
-      {_.sortBy(Object.values(obsidianApi.databases), database =>
-        parseTitle(database)
-      ).map(database => {
-        const title = parseTitle(database)
+      {_.sortBy(Object.values(databases), database => parseTitle(database)).map(
+        database => {
+          const title = parseTitle(database)
 
-        return (
-          <div className='mb-1 flex'>
-            <div className='w-1/2 flex-none'>{title}</div>
-            <input
-              defaultValue={obsidianApi.settings.files[database.id]?.path ?? ''}
-              className='w-1/2'
-              type='text'
-              spellCheck='false'
-              placeholder='no folder selected'
-              onBlur={ev =>
-                obsidianApi.updateFile(database.id, {
-                  path: ev.target.value
-                })
-              }></input>
-          </div>
-        )
-      })}
+          return (
+            <div className='mb-1 flex'>
+              <div className='w-1/2 flex-none'>{title}</div>
+              <input
+                defaultValue={
+                  obsidianApi.settings.databases[database.id]?.path ?? ''
+                }
+                className='w-1/2'
+                type='text'
+                spellCheck='false'
+                placeholder='no folder selected'
+                onBlur={ev =>
+                  obsidianApi.updateFile(database.id, {
+                    path: ev.target.value
+                  })
+                }></input>
+            </div>
+          )
+        }
+      )}
     </div>
   )
 }

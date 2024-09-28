@@ -1,12 +1,13 @@
-import { Notice, PluginSettingTab, Setting, App } from 'obsidian'
+import { Notice, PluginSettingTab, Setting, App as ObsidianApp } from 'obsidian'
 import NotionSync from './main'
 import { Root, createRoot } from 'react-dom/client'
+import App from './components/App'
 
 export default class NotionSyncSettingsTab extends PluginSettingTab {
   plugin: NotionSync
   root: Root
 
-  constructor(app: App, plugin: NotionSync) {
+  constructor(app: ObsidianApp, plugin: NotionSync) {
     super(app, plugin)
     this.plugin = plugin
   }

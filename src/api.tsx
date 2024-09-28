@@ -30,7 +30,7 @@ import {
 } from './functions/parser'
 import NotionSync from './main'
 import { DateTime } from 'luxon'
-import _ from 'lodash'
+import _, { clone } from 'lodash'
 import { DataArray, Literal, PageMetadata, getAPI } from 'obsidian-dataview'
 import { createRoot } from 'react-dom/client'
 import { useState } from 'react'
@@ -68,8 +68,10 @@ export default class Api extends Component {
       skipped: []
     }
 
+    console.log('syncing', this.databases)
+
     const loadedDatabases = Object.values(this.databases).filter(
-      db => this.settings.files[db.id]?.path
+      db => this.settings.databases[db.id]?.path
     )
     const promises: Promise<any>[] = []
     for (let database of loadedDatabases) {
@@ -98,7 +100,11 @@ export default class Api extends Component {
                   <div className='grow' />
                   <button
                     onClick={async () => {
-                      await this.uploadFile(conflict.tFile, conflict.page.id)
+                      await this.uploadFile(
+                        conflict.tFile,
+                        conflict.page.id,
+                        conflict.page.parent['dtabase_id']
+                      )
                       const newConflicting = conflicting
                         .slice(0, i)
                         .concat(conflicting.slice(i + 1))
@@ -192,8 +198,39 @@ export default class Api extends Component {
     return page
   }
 
-  async uploadFile(tFile: TFile, page_id: string, skipProgress = false) {
-    const page: PageObjectResponse = await this.getPage(page_id)
+  async uploadFile(
+    tFile: TFile,
+    page_id: string | undefined,
+    databaseId: string,
+    skipProgress = false
+  ) {
+    let page: PageObjectResponse
+    try {
+      invariant(page_id)
+      page = await this.getPage(page_id as string, true)
+      console.log('page:', clone(page))
+    } catch {
+      console.log('no page, recreating')
+      page = await this.request({
+        url: `https://api.notion.com/v1/pages`,
+        body: {
+          parent: { database_id: databaseId },
+          properties: {
+            Name: {
+              title: [{ text: { content: tFile.basename } }]
+            }
+          }
+        },
+        method: 'POST'
+      }).catch(() => {
+        console.error('no page uploaded')
+      })
+      await this.app.fileManager.processFrontMatter(
+        tFile,
+        frontmatter => (frontmatter['Notion ID'] = page.id)
+      )
+    }
+
     const [nameKey, name] = parsePageTitle(page)
     await this.app.fileManager.processFrontMatter(tFile, frontmatter => {
       const notionProperties: Record<string, any> = {}
@@ -204,6 +241,7 @@ export default class Api extends Component {
           page.properties[key].type,
           frontmatter[key]
         )
+
         if (
           parsedProperty !== undefined &&
           !_.isEqual(
@@ -380,8 +418,7 @@ export default class Api extends Component {
   }
 
   async syncDatabase(databaseId: string, force?: 'download' | 'upload') {
-    const database = this.settings.files[databaseId]
-
+    const database = this.settings.databases[databaseId]
     if (!database.path) return
 
     const lastSync = DateTime.fromMillis(this.settings.lastSync)
@@ -429,7 +466,7 @@ export default class Api extends Component {
         ? files
         : files.filter(file => file.file.mtime > lastSync)
     const databasePath =
-      normalizePath(this.settings.files[databaseId].path) + '/'
+      normalizePath(this.settings.databases[databaseId].path) + '/'
 
     for (let page of pages) {
       const pageTitle = parsePageTitle(page)
@@ -456,25 +493,11 @@ export default class Api extends Component {
         file.file.path
       )
       invariant(tFile)
-      if (!file['Notion ID']) {
-        const page = await this.request({
-          url: `https://api.notion.com/v1/pages`,
-          body: {
-            parent: { database_id: databaseId },
-            properties: {
-              Name: {
-                title: [{ text: { content: tFile.basename } }]
-              }
-            }
-          },
-          method: 'POST'
-        })
-        await this.app.fileManager.processFrontMatter(
-          tFile,
-          frontmatter => (frontmatter['Notion ID'] = page.id)
-        )
-        await this.uploadFile(tFile, page.id as string)
-      } else await this.uploadFile(tFile, file['Notion ID'] as string)
+      await this.uploadFile(
+        tFile,
+        file['Notion ID'] as string | undefined,
+        databaseId
+      )
     }
   }
 
@@ -489,6 +512,7 @@ export default class Api extends Component {
     this.setSetting = setSetting
     this.people = {}
     this.pages = {}
+    this.load = this.load.bind(this)
     this.load()
   }
 
@@ -517,7 +541,7 @@ export default class Api extends Component {
     return JSON.parse(result)
   }
 
-  async loadDatabases() {
+  private async loadDatabases() {
     const search = await this.request<Client['search']>({
       url: 'https://api.notion.com/v1/search',
       method: 'POST',
@@ -542,13 +566,13 @@ export default class Api extends Component {
 
     const oldFile: NotionFile = {
       ...defaultFile,
-      ...this.settings.files[id]
+      ...this.settings.databases[id]
     }
 
     this.setSetting({
-      files: {
-        ...this.settings.files,
-        [id]: { ...this.settings.files[id], ...file }
+      databases: {
+        ...this.settings.databases,
+        [id]: { ...this.settings.databases[id], ...file }
       }
     })
 

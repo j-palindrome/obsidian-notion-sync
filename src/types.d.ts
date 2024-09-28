@@ -4,7 +4,7 @@ import { TFile } from 'obsidian'
 
 declare global {
   type NotionSyncSettings = {
-    files: Record<string, NotionFile>
+    databases: Record<string, NotionFile>
     apiKey: string
     lastSync: number
     lastConflicts: string[]

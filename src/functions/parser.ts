@@ -13,7 +13,7 @@ import {
   StatusPropertyItemObjectResponse,
   TextRichTextItemResponse,
   UniqueIdPropertyItemObjectResponse,
-  UrlPropertyItemObjectResponse,
+  UrlPropertyItemObjectResponse
 } from '@notionhq/client/build/src/api-endpoints'
 import { DateTime } from 'luxon'
 import Api from '../api'
@@ -39,7 +39,7 @@ export function yamlToNotion(
     case 'date':
       return property
         ? ({
-            start: property,
+            start: property
           } as DatePropertyItemObjectResponse['date'])
         : undefined
     case 'email':
@@ -47,8 +47,8 @@ export function yamlToNotion(
     case 'multi_select':
       return (
         property instanceof Array
-          ? property.map((option) => ({
-              name: option.replace('[[', '').replace(']]', ''),
+          ? property.map(option => ({
+              name: option.replace('[[', '').replace(']]', '')
             }))
           : property
           ? [
@@ -56,8 +56,8 @@ export function yamlToNotion(
                 name:
                   typeof property === 'string'
                     ? property.replace('[[', '').replace(']]', '')
-                    : property,
-              },
+                    : property
+              }
             ]
           : []
       ) as MultiSelectPropertyItemObjectResponse['multi_select']
@@ -74,21 +74,21 @@ export function yamlToNotion(
               name:
                 typeof property === 'string'
                   ? property.replace('[[', '').replace(']]', '')
-                  : property,
+                  : property
             }
           : null
       ) as SelectPropertyItemObjectResponse['select']
     case 'status':
       return {
-        name: property,
+        name: property
       } as StatusPropertyItemObjectResponse['status']
     case 'title':
     case 'rich_text':
       return [
         {
           type: 'text',
-          text: { content: String(property) },
-        },
+          text: { content: String(property) }
+        }
       ] as TextRichTextItemResponse[]
     case 'unique_id':
       return {
@@ -98,7 +98,7 @@ export function yamlToNotion(
             ? parseInt(property)
             : typeof property === 'number'
             ? property
-            : undefined,
+            : undefined
       } as UniqueIdPropertyItemObjectResponse['unique_id']
     case 'url':
       return String(property) as UrlPropertyItemObjectResponse['url']
@@ -150,5 +150,5 @@ export function parsePageTitle(page: PageObjectResponse) {
 }
 
 export function parseText(object: RichTextItemResponse[]) {
-  return object.map((span) => span.plain_text).join('')
+  return object.map(span => span.plain_text).join('')
 }

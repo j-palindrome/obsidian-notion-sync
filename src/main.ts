@@ -5,7 +5,7 @@ import { DateTime } from 'luxon'
 import invariant from 'tiny-invariant'
 
 const DEFAULT_SETTINGS: NotionSyncSettings = {
-  files: {},
+  databases: {},
   apiKey: '',
   lastSync: 0,
   lastConflicts: []
@@ -70,11 +70,11 @@ export default class NotionSync extends Plugin {
           async frontmatter => {
             invariant(ctx.file)
             const id = frontmatter['Notion ID']
-            if (!id) {
-              new Notice('No Notion ID property.')
-              return
-            }
-            await this.api.uploadFile(ctx.file, id, true)
+            console.log(this.settings)
+            const database = Object.entries(this.settings.databases).find(x =>
+              ctx.file!.path.includes(x[1].path)
+            )!
+            await this.api.uploadFile(ctx.file, id, database[0], true)
             new Notice('Notion sync: uploaded.')
           }
         )
