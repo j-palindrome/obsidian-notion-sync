@@ -15,6 +15,7 @@
   "dependencies": {
     "@notionhq/client": "^2.2.15",
     "@types/lodash": "^4.17.9",
+    "axios": "^1.7.7",
     "esbuild": "^0.24.0",
     "esbuild-copy-static-files": "^0.1.0",
     "esbuild-postcss": "^0.0.4",

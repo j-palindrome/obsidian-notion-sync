@@ -12,10 +12,8 @@ if you want to view the source, please visit the github repository of this plugi
 const DIR = 'notion-sync'
 if (!DIR) throw new Error('plugin id missing')
 const VAULT = 'Joshua'
-// const VAULT = 'TEST'
 
 const MODE = process.env.MODE
-const NO_CSS = process.env.NO_CSS
 
 let entryPoints = [`src/main.ts`]
 entryPoints.push(`src/styles.css`)

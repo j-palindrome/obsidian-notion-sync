@@ -4,6 +4,7 @@ import {
   DatePropertyItemObjectResponse,
   EmailPropertyItemObjectResponse,
   MultiSelectPropertyItemObjectResponse,
+  NumberPropertyItemObjectResponse,
   PageObjectResponse,
   PhoneNumberPropertyItemObjectResponse,
   PropertyItemObjectResponse,
@@ -33,36 +34,35 @@ export function yamlToNotion(
 ) {
   switch (type) {
     case 'checkbox':
-      return property === true
-        ? true
-        : (false as CheckboxPropertyItemObjectResponse['checkbox'])
+      return (
+        property === true ? true : false
+      ) as CheckboxPropertyItemObjectResponse['checkbox']
     case 'date':
-      return property
-        ? ({
-            start: property
-          } as DatePropertyItemObjectResponse['date'])
-        : undefined
+      return (
+        property
+          ? {
+              start: property
+            }
+          : null
+      ) as DatePropertyItemObjectResponse['date']
     case 'email':
       return String(property) as EmailPropertyItemObjectResponse['email']
     case 'multi_select':
       return (
         property instanceof Array
           ? property.map(option => ({
-              name: option.replace('[[', '').replace(']]', '')
+              name: option
             }))
           : property
           ? [
               {
-                name:
-                  typeof property === 'string'
-                    ? property.replace('[[', '').replace(']]', '')
-                    : property
+                name: String(property)
               }
             ]
           : []
       ) as MultiSelectPropertyItemObjectResponse['multi_select']
     case 'number':
-      return undefined
+      return Number(property) as NumberPropertyItemObjectResponse['number']
     case 'phone_number':
       return String(
         property
@@ -71,23 +71,24 @@ export function yamlToNotion(
       return (
         property
           ? {
-              name:
-                typeof property === 'string'
-                  ? property.replace('[[', '').replace(']]', '')
-                  : property
+              name: property
             }
           : null
       ) as SelectPropertyItemObjectResponse['select']
     case 'status':
-      return {
-        name: property
-      } as StatusPropertyItemObjectResponse['status']
+      return (
+        !property
+          ? null
+          : {
+              name: property
+            }
+      ) as StatusPropertyItemObjectResponse['status']
     case 'title':
     case 'rich_text':
       return [
         {
           type: 'text',
-          text: { content: String(property) }
+          text: { content: !property ? '' : String(property) }
         }
       ] as TextRichTextItemResponse[]
     case 'unique_id':

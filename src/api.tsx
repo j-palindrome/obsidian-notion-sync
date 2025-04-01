@@ -17,7 +17,8 @@ import {
   TFolder,
   normalizePath,
   parseLinktext,
-  request
+  request,
+  requestUrl
 } from 'obsidian'
 
 import invariant from 'tiny-invariant'
@@ -47,7 +48,6 @@ export default class Api extends Component {
   settings: NotionSyncSettings
   app: ObsidianApp
   setSetting: NotionSync['setSetting']
-  client: Client
   databases: Record<string, DatabaseObjectResponse>
   people: Record<string, UserObjectResponse>
   pages: Record<string, PageObjectResponse>
@@ -67,8 +67,6 @@ export default class Api extends Component {
       downloaded: [],
       skipped: []
     }
-
-    console.log('syncing', this.databases)
 
     const loadedDatabases = Object.values(this.databases).filter(
       db => this.settings.databases[db.id]?.path
@@ -90,29 +88,43 @@ export default class Api extends Component {
       const content = createRoot(modal.contentEl)
 
       const SyncStatus = (conflicting: Progress['conflicting']) => {
+        const uploadFile = async (conflict, i) => {
+          await this.uploadFile(
+            conflict.tFile,
+            conflict.page.id,
+            conflict.page.parent['dtabase_id']
+          )
+          const newConflicting = conflicting
+            .slice(0, i)
+            .concat(conflicting.slice(i + 1))
+          if (newConflicting.length === 0) {
+            modal.close()
+            new Notice('All conflicts resolved.')
+          } else content.render(SyncStatus(newConflicting))
+        }
+
         return (
           <>
             <div>Conflicts:</div>
+            <div>
+              <button
+                onClick={async () => {
+                  let i = 0
+                  for (let file of conflicting) {
+                    uploadFile(file, i)
+                    i++
+                  }
+                }}>
+                upload all
+              </button>
+              <button onClick={() => {}}>download all</button>
+            </div>
             <div>
               {conflicting.map((conflict, i) => (
                 <div className='flex w-full items-center space-x-2'>
                   <p key={conflict.tFile.path}>{conflict.tFile.basename}</p>
                   <div className='grow' />
-                  <button
-                    onClick={async () => {
-                      await this.uploadFile(
-                        conflict.tFile,
-                        conflict.page.id,
-                        conflict.page.parent['dtabase_id']
-                      )
-                      const newConflicting = conflicting
-                        .slice(0, i)
-                        .concat(conflicting.slice(i + 1))
-                      if (newConflicting.length === 0) {
-                        modal.close()
-                        new Notice('All conflicts resolved.')
-                      } else content.render(SyncStatus(newConflicting))
-                    }}>
+                  <button onClick={() => uploadFile(conflict, i)}>
                     upload
                   </button>
                   <button
@@ -207,11 +219,10 @@ export default class Api extends Component {
     let page: PageObjectResponse
     try {
       invariant(page_id)
-      page = await this.getPage(page_id as string, true)
-      console.log('page:', clone(page))
+      page = await this.getPage(page_id as string)
+      if (page.in_trash) throw 'in trash'
     } catch {
-      console.log('no page, recreating')
-      page = await this.request({
+      const newPage = await this.request<Client['pages']['create']>({
         url: `https://api.notion.com/v1/pages`,
         body: {
           parent: { database_id: databaseId },
@@ -222,13 +233,16 @@ export default class Api extends Component {
           }
         },
         method: 'POST'
-      }).catch(() => {
-        console.error('no page uploaded')
       })
+      if (!newPage) {
+        throw new Error('no new page created')
+      }
+      page_id = newPage.id
       await this.app.fileManager.processFrontMatter(
         tFile,
-        frontmatter => (frontmatter['Notion ID'] = page.id)
+        frontmatter => (frontmatter['Notion ID'] = page_id)
       )
+      page = await this.getPage(page_id)
     }
 
     const [nameKey, name] = parsePageTitle(page)
@@ -273,13 +287,10 @@ export default class Api extends Component {
           properties: notionProperties
         }
       }).catch(err => {
-        console.error('error:', `https://api.notion.com/v1/pages/${page.id}`, {
-          properties: notionProperties
-        })
+        console.log('failure:', err)
       })
     })
     if (!skipProgress) this.progress.uploaded.push(name)
-    console.info('uploaded', name)
   }
 
   async downloadPage(
@@ -295,7 +306,6 @@ export default class Api extends Component {
     invariant(tFile instanceof TFile)
 
     if (tFile.basename !== name) {
-      console.log('mismatch names', tFile.basename, name)
       await this.app.vault.rename(
         tFile,
         tFile.parent?.path + '/' + name + '.md'
@@ -444,7 +454,7 @@ export default class Api extends Component {
                   }
                 }
         }
-      }).catch(err => console.warn('error:', err))
+      })
       start_cursor = newPages['next_cursor']
       pages.push(...newPages.results)
     } while (newPages['has_more'])
@@ -493,6 +503,7 @@ export default class Api extends Component {
         file.file.path
       )
       invariant(tFile)
+
       await this.uploadFile(
         tFile,
         file['Notion ID'] as string | undefined,
@@ -513,7 +524,7 @@ export default class Api extends Component {
     this.people = {}
     this.pages = {}
     this.load = this.load.bind(this)
-    this.load()
+    this.load().then(() => console.log('loaded Notion databases'))
   }
 
   async request<T extends (args: any) => any>(
@@ -521,24 +532,41 @@ export default class Api extends Component {
       body?: Partial<Parameters<T>[0]>
     }
   ): Promise<Awaited<ReturnType<T>>> {
-    const result = await request({
-      ...config,
-      headers: {
-        Authorization: `Bearer ${this.settings.apiKey}`,
-        'Notion-Version': '2022-06-28',
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      },
-      body: config.body ? JSON.stringify(config.body) : undefined
-    }).catch(err => {
-      console.warn('error:', err)
-    })
+    let result
+    try {
+      result = await requestUrl({
+        ...config,
+        headers: {
+          Authorization: `Bearer ${this.settings.apiKey}`,
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        },
+        body: config.body ? JSON.stringify(config.body) : undefined
+      })
+    } catch (e) {
+      if (e.message.includes('net::ERR_NETWORK_CHANGED')) {
+        console.log('net changed, retrying')
+
+        return await this.request(config)
+      } else if (e.message.includes('status 429')) {
+        console.log('too many requests, waiting to retry', e)
+
+        // return await new Promise(res => {
+        //   setTimeout(
+        //     async () => this.request(config).then(result => res(result)),
+        //     1000
+        //   )
+        // })
+      }
+      console.log('ERROR', e, config.body)
+    }
+
     if (!result) {
-      console.trace()
       throw 'no result'
     }
 
-    return JSON.parse(result)
+    return result.json
   }
 
   private async loadDatabases() {
